@@ -11,4 +11,5 @@ require (
 	github.com/urfave/cli/v2 v2.3.0
 	k8s.io/apimachinery v0.21.1
 	k8s.io/client-go v0.21.1
+	github.com/jaypipes/ghw v0.8.0
 )

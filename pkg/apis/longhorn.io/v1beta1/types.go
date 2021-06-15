@@ -1,18 +1,175 @@
 package v1beta1
 
 import (
+	"github.com/rancher/wrangler/pkg/condition"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+var (
+	DeviceMounted condition.Cond = "Mounted"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
+// BlockDevice is the schema to describe a node block device
+// +kubebuilder:resource:shortName=bd,scope=Namespaced
+// +kubebuilder:printcolumn:name="NodeName",type="string",JSONPath=`.spec.nodeName`
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=`.metadata.creationTimestamp`
 type BlockDevice struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              BlockDeviceSpec `json:"spec"`
+	Spec              BlockDeviceSpec   `json:"spec"`
+	Status            BlockDeviceStatus `json:"status"`
+}
+
+type DeviceCapcity struct {
+	// the amount of storage the disk provides
+	SizeBytes uint64 `json:"sizeBytes"`
+
+	// the size of the physical blocks used on the disk, in bytes
+	PhysicalBlockSizeBytes uint64 `json:"physicalBlockSizeBytes"`
 }
 
 type BlockDeviceSpec struct {
+	// a Node struct, describe the node details the BD is attached to
+	NodeName string `json:"nodeName"`
+
+	// a string with the short name of the disk, e.g. "sda"
 	Name string `json:"name"`
+
+	// a object describe the disk capacity
+	Capacity DeviceCapcity `json:"capacity"`
+
+	// a object describe the disk details
+	Details DeviceDetails `json:"details"`
+
+	// contains an array of Partition structs, one for each partition on the disk
+	Partitions []Partition `json:"partitions,omitempty"`
+}
+
+type DeviceDetails struct {
+	// a string represents the type of drive bus, options are "HDD", "FDD", "ODD", or "SSD",
+	// which correspond to a hard disk drive (rotational), floppy drive, optical (CD/DVD) drive and solid-state drive.
+	// +kubebuilder:validation:Enum:=HDD;FDD;ODD;SSD;Unknown;""
+	DriveType string `json:"driveType"`
+
+	// contains a boolean indicating if the disk drive is removable
+	IsRemovable bool `json:"isRemovable"`
+
+	// the type of storage controller/drive, options are "SCSI", "IDE", "virtio", "MMC", or "NVMe"
+	// +kubebuilder:validation:Enum:=SCSI;IDE;virtio;MMC;NVMe;Unknown;""
+	StorageController string `json:"storageController"`
+
+	// a string represents the block device bus path
+	BusPath string `json:"busPath"`
+
+	// a string with the vendor-assigned disk model name
+	Model string `json:"model"`
+
+	// a string with the name of the hardware vendor for the disk drive
+	Vendor string `json:"vendor"`
+
+	// a string with the disk's serial number
+	SerialNumber string `json:"serialNumber"`
+
+	// the numeric index of the NUMA node this disk is local to, or -1
+	NUMANodeID int `json:"numaNodeID"`
+
+	//a string with the disk's World Wide Name(WWN)
+	WWN string `json:"wwn"`
+}
+
+type StorageController string
+
+const (
+	// StorageControllerIDE is the type of storage controller, IDE stands for Integrated Drive Electronics
+	StorageControllerIDE StorageController = "IDE"
+	// StorageControllerSCSI is the type of storage controller, SCSI stands for Small Computer System Interface
+	StorageControllerSCSI StorageController = "SCSI"
+	// StorageControllerNVMe is the type of storage controller, NVMe stands for Non-Volatile Memory express
+	StorageControllerNVMe StorageController = "NVMe"
+	// StorageControllerVirtio is the type of storage controller, virtio is a virtualization standard for network and disk device drivers
+	StorageControllerVirtio StorageController = "virtio"
+	// StorageControllerMMC is the type of storage controller, MMC stands for Multi Media Card
+	StorageControllerMMC StorageController = "MMC"
+)
+
+type DriveType string
+
+const (
+	// DriveTypeHDD is the type of drive, which correspond to a hard disk drive (rotational)
+	DriveTypeHDD DriveType = "HDD"
+	// DriveTypeFDD is the type of drive, which correspond to floppy drive
+	DriveTypeFDD DriveType = "FDD"
+	// DriveTypeODD is the type of drive, which correspond to  optical (CD/DVD) drive
+	DriveTypeODD DriveType = "ODD"
+	// DriveTypeSSD is the type of drive, which correspond to solid-state drive
+	DriveTypeSSD DriveType = "SSD"
+)
+
+type Partition struct {
+	// a string with the short name of the partition, e.g. "sda1".
+	Name string `json:"name"`
+
+	Label string `json:"label"`
+
+	// a string indicated the filesystem type for the partition, or "" if the system could not determine the type.
+	Type string `json:"type"`
+
+	// a string containing the volume UUID on Linux, the partition UUID on MacOS and nothing on Windows.
+	UUID string `json:"uuid"`
+
+	// contains the amount of storage the partition provides.
+	SizeBytes uint64 `json:"sizeBytes"`
+
+	// a string with the partition's mount point, or "" if no mount point was discovered
+	MountPoint string `json:"mountPoint"`
+
+	// a bool indicating the partition is read-only
+	IsReadOnly bool `json:"isReadOnly"`
+}
+
+type BlockDeviceStatus struct {
+	// the current state of the block device, options are "Active", "Inactive", or "Unknown"
+	// +kubebuilder:validation:Enum:=Active;Inactive;Unknown
+	State BlockDeviceState `json:"state,omitempty"`
+
+	// +optional
+	Conditions []Condition `json:"conditions,omitempty"`
+}
+
+type BlockDeviceState string
+
+const (
+	// BlockDeviceActive is the state for a block device that is connected to the node
+	BlockDeviceActive BlockDeviceState = "Active"
+
+	// BlockDeviceInactive is the state for a block device that is disconnected from a node
+	BlockDeviceInactive BlockDeviceState = "Inactive"
+
+	// BlockDeviceUnknown is the state for a block device that cannot be determined at this time
+	BlockDeviceUnknown BlockDeviceState = "Unknown"
+)
+
+type Condition struct {
+	// Type of the condition.
+	Type condition.Cond `json:"type"`
+
+	// Status of the condition, one of True, False, Unknown.
+	Status v1.ConditionStatus `json:"status"`
+
+	// The last time this condition was updated.
+	LastUpdateTime string `json:"lastUpdateTime,omitempty"`
+
+	// Last time the condition transitioned from one status to another.
+	LastTransitionTime string `json:"lastTransitionTime,omitempty"`
+
+	// The reason for the condition's last transition.
+	Reason string `json:"reason,omitempty"`
+
+	// Human-readable message indicating details about last transition
+	Message string `json:"message,omitempty"`
 }
