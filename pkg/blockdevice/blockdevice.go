@@ -3,7 +3,7 @@ package blockdevice
 import (
 	"fmt"
 
-	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
+	longhornv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
 	"github.com/longhorn/node-disk-manager/pkg/util"
 
 	"github.com/jaypipes/ghw"
@@ -12,15 +12,19 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*diskv1.BlockDevice {
-	bdList := make([]*diskv1.BlockDevice, 0)
+const (
+	ParentDeviceLabel = "blockdevice.longhorn.io/parent-device"
+)
+
+func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhornv1.BlockDevice {
+	bdList := make([]*longhornv1.BlockDevice, 0)
 	partitioned := len(disk.Partitions) > 0
-	fileSystemInfo := diskv1.FilesystemStatus{
+	fileSystemInfo := longhornv1.FilesystemStatus{
 		MountPoint: disk.FileSystemInfo.MountPoint,
 		Type:       disk.FileSystemInfo.FsType,
 		IsReadOnly: disk.FileSystemInfo.IsReadOnly,
 	}
-	parent := &diskv1.BlockDevice{
+	parent := &longhornv1.BlockDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.GetBlockDeviceName(disk.Name, nodeName),
 			Namespace: namespace,
@@ -28,24 +32,24 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*diskv1.
 				v1.LabelHostname: nodeName,
 			},
 		},
-		Spec: diskv1.BlockDeviceSpec{
+		Spec: longhornv1.BlockDeviceSpec{
 			NodeName: nodeName,
 			DevPath:  GetDiskPath(disk.Name),
-			FileSystem: diskv1.FilesystemInfo{
+			FileSystem: longhornv1.FilesystemInfo{
 				MountPoint: disk.FileSystemInfo.MountPoint,
 				Type:       disk.FileSystemInfo.FsType,
 			},
 		},
-		Status: diskv1.BlockDeviceStatus{
-			State: diskv1.BlockDeviceActive,
-			DeviceStatus: diskv1.DeviceStatus{
+		Status: longhornv1.BlockDeviceStatus{
+			State: longhornv1.BlockDeviceActive,
+			DeviceStatus: longhornv1.DeviceStatus{
 				Partitioned: partitioned,
-				Capacity: diskv1.DeviceCapcity{
+				Capacity: longhornv1.DeviceCapcity{
 					SizeBytes:              disk.SizeBytes,
 					PhysicalBlockSizeBytes: disk.PhysicalBlockSizeBytes,
 				},
-				Details: diskv1.DeviceDetails{
-					DeviceType:        diskv1.DeviceTypeDisk,
+				Details: longhornv1.DeviceDetails{
+					DeviceType:        longhornv1.DeviceTypeDisk,
 					DriveType:         disk.DriveType.String(),
 					IsRemovable:       disk.IsRemovable,
 					StorageController: disk.StorageController.String(),
@@ -63,27 +67,28 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*diskv1.
 		},
 	}
 	bdList = append(bdList, parent)
-	bdList = append(bdList, GetPartitionDisks(disk.Partitions, parent.DeepCopy(), nodeName)...)
+	bdList = append(bdList, GetPartitionDisks(disk.Partitions, parent, nodeName)...)
 	return bdList
 }
 
-func GetPartitionDisks(partitions []*ghw.Partition, parentDisk *diskv1.BlockDevice, nodeName string) []*diskv1.BlockDevice {
-	blockDevices := make([]*diskv1.BlockDevice, 0, len(partitions))
+func GetPartitionDisks(partitions []*ghw.Partition, parentDisk *longhornv1.BlockDevice, nodeName string) []*longhornv1.BlockDevice {
+	blockDevices := make([]*longhornv1.BlockDevice, 0, len(partitions))
 	for _, part := range partitions {
 		fmt.Printf("partition: %s, uuid: %s\n", part.String(), part.UUID)
-		fileSystemInfo := diskv1.FilesystemStatus{
+		fileSystemInfo := longhornv1.FilesystemStatus{
 			Type:       part.FileSystemInfo.FsType,
 			MountPoint: part.FileSystemInfo.MountPoint,
 			IsReadOnly: part.FileSystemInfo.IsReadOnly,
 		}
 		diskCpy := parentDisk.DeepCopy()
+		diskCpy.Labels[ParentDeviceLabel] = parentDisk.Name
 		diskCpy.Spec.DevPath = GetDiskPath(part.Name)
 		diskCpy.Name = util.GetBlockDeviceName(part.Name, nodeName)
 		diskCpy.Spec.FileSystem.Type = part.FileSystemInfo.FsType
 		diskCpy.Spec.FileSystem.MountPoint = part.FileSystemInfo.MountPoint
 		diskCpy.Status.DeviceStatus.Partitioned = false
 		diskCpy.Status.DeviceStatus.ParentDevice = parentDisk.Spec.DevPath
-		diskCpy.Status.DeviceStatus.Details.DeviceType = diskv1.DeviceTypePart
+		diskCpy.Status.DeviceStatus.Details.DeviceType = longhornv1.DeviceTypePart
 		diskCpy.Status.DeviceStatus.Capacity.SizeBytes = part.SizeBytes
 		diskCpy.Status.DeviceStatus.Details.Label = part.Label
 		diskCpy.Status.DeviceStatus.Details.PartUUID = part.UUID
