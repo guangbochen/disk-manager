@@ -24,14 +24,6 @@ const (
 	sectorSize = 512
 )
 
-type UUIDType string
-
-const (
-	PartUUID UUIDType = "PARTUUID"
-	PTUUID   UUIDType = "PTUUID"
-	UUID     UUIDType = "UUID"
-)
-
 func (i *Info) load() error {
 	paths := linuxpath.New(i.ctx)
 	i.Disks = disks(i.ctx, paths)
@@ -203,35 +195,37 @@ func diskPartitions(ctx *context.Context, paths *linuxpath.Paths, disk string) [
 		}
 		size := partitionSizeBytes(paths, disk, fname)
 		mp, pt, ro := partitionInfo(paths, fname)
-		du := diskUUID(ctx, fname, PartUUID)
+		du := diskPartUUID(ctx, fname)
 		p := &Partition{
-			Name:      fname,
-			SizeBytes: size,
-			FileSystemInfo: FileSystemInfo{
-				MountPoint: mp,
-				FsType:     pt,
-				IsReadOnly: ro,
-			},
-			UUID: du,
+			Name:       fname,
+			SizeBytes:  size,
+			MountPoint: mp,
+			Type:       pt,
+			IsReadOnly: ro,
+			UUID:       du,
 		}
 		out = append(out, p)
 	}
 	return out
 }
 
-func diskUUID(ctx *context.Context, part string, uuidType UUIDType) string {
+func diskPartUUID(ctx *context.Context, part string) string {
+	if !ctx.EnableTools {
+		ctx.Warn("EnableTools=false disables partition UUID detection.")
+		return ""
+	}
 	if !strings.HasPrefix(part, "/dev") {
 		part = "/dev/" + part
 	}
 	args := []string{
 		"blkid",
 		"-s",
-		string(uuidType),
+		"PARTUUID",
 		part,
 	}
 	out, err := exec.Command(args[0], args[1:]...).Output()
 	if err != nil {
-		ctx.Warn("failed to read disk uuid of %s : %s\n", part, err.Error())
+		ctx.Warn("failed to read disk partuuid of %s : %s\n", part, err.Error())
 		return ""
 	}
 
@@ -239,9 +233,9 @@ func diskUUID(ctx *context.Context, part string, uuidType UUIDType) string {
 		return ""
 	}
 
-	parts := strings.Split(string(out), "UUID=")
+	parts := strings.Split(string(out), "PARTUUID=")
 	if len(parts) != 2 {
-		ctx.Warn("failed to parse the uuid of %s\n", part)
+		ctx.Warn("failed to parse the partuuid of %s\n", part)
 		return ""
 	}
 
@@ -261,59 +255,6 @@ func diskIsRemovable(paths *linuxpath.Paths, disk string) bool {
 	return false
 }
 
-func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *Disk {
-	driveType, storageController := diskTypes(dname)
-	// TODO(jaypipes): Move this into diskTypes() once abstracting
-	// diskIsRotational for ease of unit testing
-	if !diskIsRotational(ctx, paths, dname) {
-		driveType = DRIVE_TYPE_SSD
-	}
-	size := diskSizeBytes(paths, dname)
-	pbs := diskPhysicalBlockSizeBytes(paths, dname)
-	busPath := diskBusPath(paths, dname)
-	node := diskNUMANodeID(paths, dname)
-	vendor := diskVendor(paths, dname)
-	model := diskModel(paths, dname)
-	serialNo := diskSerialNumber(paths, dname)
-	wwn := diskWWN(paths, dname)
-	removable := diskIsRemovable(paths, dname)
-	uuid := diskUUID(ctx, dname, UUID)
-	ptuuid := diskUUID(ctx, dname, PTUUID)
-	mp, pt, ro := partitionInfo(paths, dname)
-	fs := FileSystemInfo{
-		MountPoint: mp,
-		FsType:     pt,
-		IsReadOnly: ro,
-	}
-
-	d := &Disk{
-		Name:                   dname,
-		SizeBytes:              size,
-		PhysicalBlockSizeBytes: pbs,
-		DriveType:              driveType,
-		IsRemovable:            removable,
-		StorageController:      storageController,
-		UUID:                   uuid,
-		PtUUID:                 ptuuid,
-		BusPath:                busPath,
-		NUMANodeID:             node,
-		Vendor:                 vendor,
-		Model:                  model,
-		SerialNumber:           serialNo,
-		WWN:                    wwn,
-		FileSystemInfo:         fs,
-	}
-
-	parts := diskPartitions(ctx, paths, dname)
-	// Map this Disk object into the Partition...
-	for _, part := range parts {
-		part.Disk = d
-	}
-	d.Partitions = parts
-
-	return d
-}
-
 func disks(ctx *context.Context, paths *linuxpath.Paths) []*Disk {
 	// In Linux, we could use the fdisk, lshw or blockdev commands to list disk
 	// information, however all of these utilities require root privileges to
@@ -330,7 +271,44 @@ func disks(ctx *context.Context, paths *linuxpath.Paths) []*Disk {
 			continue
 		}
 
-		d := getDisk(ctx, paths, dname)
+		driveType, storageController := diskTypes(dname)
+		// TODO(jaypipes): Move this into diskTypes() once abstracting
+		// diskIsRotational for ease of unit testing
+		if !diskIsRotational(ctx, paths, dname) {
+			driveType = DRIVE_TYPE_SSD
+		}
+		size := diskSizeBytes(paths, dname)
+		pbs := diskPhysicalBlockSizeBytes(paths, dname)
+		busPath := diskBusPath(paths, dname)
+		node := diskNUMANodeID(paths, dname)
+		vendor := diskVendor(paths, dname)
+		model := diskModel(paths, dname)
+		serialNo := diskSerialNumber(paths, dname)
+		wwn := diskWWN(paths, dname)
+		removable := diskIsRemovable(paths, dname)
+
+		d := &Disk{
+			Name:                   dname,
+			SizeBytes:              size,
+			PhysicalBlockSizeBytes: pbs,
+			DriveType:              driveType,
+			IsRemovable:            removable,
+			StorageController:      storageController,
+			BusPath:                busPath,
+			NUMANodeID:             node,
+			Vendor:                 vendor,
+			Model:                  model,
+			SerialNumber:           serialNo,
+			WWN:                    wwn,
+		}
+
+		parts := diskPartitions(ctx, paths, dname)
+		// Map this Disk object into the Partition...
+		for _, part := range parts {
+			part.Disk = d
+		}
+		d.Partitions = parts
+
 		disks = append(disks, d)
 	}
 
@@ -478,4 +456,19 @@ func parseMountEntry(line string) *mountEntry {
 	opts := strings.Split(fields[3], ",")
 	res.Options = opts
 	return res
+}
+
+func partitionMountPoint(paths *linuxpath.Paths, part string) string {
+	mp, _, _ := partitionInfo(paths, part)
+	return mp
+}
+
+func partitionType(paths *linuxpath.Paths, part string) string {
+	_, pt, _ := partitionInfo(paths, part)
+	return pt
+}
+
+func partitionIsReadOnly(paths *linuxpath.Paths, part string) bool {
+	_, _, ro := partitionInfo(paths, part)
+	return ro
 }
