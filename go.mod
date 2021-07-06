@@ -3,8 +3,6 @@ module github.com/longhorn/node-disk-manager
 go 1.16
 
 replace (
-	github.com/jaypipes/ghw => github.com/guangbochen/ghw v0.8.1-0.20210625092450-0a2c99336d04
-
 	k8s.io/api => k8s.io/api v0.21.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.21.1
 	k8s.io/apimachinery => k8s.io/apimachinery v0.21.1
@@ -33,8 +31,10 @@ replace (
 )
 
 require (
+	github.com/diskfs/go-diskfs v1.2.0
 	github.com/ehazlett/simplelog v0.0.0-20200226020431-d374894e92a4
-	github.com/jaypipes/ghw v0.8.0
+	github.com/frankban/quicktest v1.13.0 // indirect
+	github.com/jaypipes/ghw v0.8.1-0.20210701154532-dd036bd38c40
 	github.com/kr/pretty v0.2.1
 	github.com/longhorn/longhorn-manager v1.1.1
 	github.com/pilebones/go-udev v0.0.0-20210126000448-a3c2a7a4afb7
