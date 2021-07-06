@@ -25,7 +25,8 @@ import (
 
 	"github.com/longhorn/node-disk-manager/pkg/block"
 	blockdevicev1 "github.com/longhorn/node-disk-manager/pkg/controller/blockdevice"
-	longhornv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io"
+	nodev1 "github.com/longhorn/node-disk-manager/pkg/controller/node"
+	longhornvctl1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io"
 	"github.com/longhorn/node-disk-manager/pkg/option"
 	"github.com/longhorn/node-disk-manager/pkg/udev"
 	"github.com/longhorn/node-disk-manager/pkg/version"
@@ -147,7 +148,7 @@ func run(opt *option.Option) error {
 		return fmt.Errorf("failed to find kubeconfig: %v", err)
 	}
 
-	lh, err := longhornv1.NewFactoryFromConfig(kubeConfig)
+	lhs, err := longhornvctl1.NewFactoryFromConfig(kubeConfig)
 	if err != nil {
 		return fmt.Errorf("error building node-disk-manager controllers: %s", err.Error())
 	}
@@ -155,22 +156,22 @@ func run(opt *option.Option) error {
 	client := kubernetes.NewForConfigOrDie(kubeConfig)
 
 	leader.RunOrDie(ctx, "", "node-disk-manager", client, func(ctx context.Context) {
-		err = blockdevicev1.Register(ctx, lh.Longhorn().V1beta1().BlockDevice(), block, opt)
+		err = blockdevicev1.Register(ctx, lhs.Longhorn().V1beta1().BlockDevice(), block, opt)
 		if err != nil {
 			logrus.Fatalf("failed to register block device controller, %s", err.Error())
 		}
 
-		//err = nodev1.Register(ctx, lh.Longhorn().V1beta1().Node(), lh.Longhorn().V1beta1().BlockDevice(), block, opt)
-		//if err != nil {
-		//	logrus.Fatalf("failed to register block device controller, %s", err.Error())
-		//}
+		err = nodev1.Register(ctx, lhs.Longhorn().V1beta1().Node(), lhs.Longhorn().V1beta1().BlockDevice(), block, opt)
+		if err != nil {
+			logrus.Fatalf("failed to register ndm node controller, %s", err.Error())
+		}
 
-		if err := start.All(ctx, opt.Threadiness, lh); err != nil {
+		if err := start.All(ctx, opt.Threadiness, lhs); err != nil {
 			logrus.Fatalf("error starting, %s", err.Error())
 		}
 
 		// register to monitor the UDEV events, similar to run `udevadm monitor -u`
-		go udev.NewUdev(block, lh.Longhorn().V1beta1().BlockDevice(), opt).Monitor(ctx)
+		go udev.NewUdev(block, lhs.Longhorn().V1beta1().BlockDevice(), opt).Monitor(ctx)
 
 		// TODO
 		// 1. add node actions, i.e. block device rescan

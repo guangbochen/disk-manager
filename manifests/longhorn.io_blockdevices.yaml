@@ -15,7 +15,7 @@ spec:
     plural: blockdevices
     shortNames:
     - bd
-    singular: block
+    singular: blockdevice
   scope: Namespaced
   versions:
   - additionalPrinterColumns:

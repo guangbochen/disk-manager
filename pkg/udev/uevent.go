@@ -10,20 +10,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/longhorn/node-disk-manager/pkg/block"
-
-	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
-	"github.com/longhorn/node-disk-manager/pkg/controller/blockdevice"
-	"github.com/longhorn/node-disk-manager/pkg/option"
-	"github.com/longhorn/node-disk-manager/pkg/util"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/kr/pretty"
-	ctldiskv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io/v1beta1"
 	"github.com/pilebones/go-udev/netlink"
 	"github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+
+	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
+	"github.com/longhorn/node-disk-manager/pkg/block"
+	"github.com/longhorn/node-disk-manager/pkg/controller/blockdevice"
+	ctldiskv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io/v1beta1"
+	"github.com/longhorn/node-disk-manager/pkg/option"
+	"github.com/longhorn/node-disk-manager/pkg/util"
 )
 
 const (

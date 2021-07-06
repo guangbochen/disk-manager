@@ -276,7 +276,7 @@ func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *Disk {
 	}
 
 	if fs.FsType == "" {
-		GetFileSystemType(dname)
+		fs.FsType = GetFileSystemType(dname)
 	}
 
 	d := &Disk{

@@ -20,7 +20,7 @@ var (
 
 type BlockDevice struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 	Spec              BlockDeviceSpec   `json:"spec"`
 	Status            BlockDeviceStatus `json:"status"`
 }
@@ -219,10 +219,22 @@ type Condition struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:skip
 
 type Node struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              types.NodeSpec   `json:"spec"`
 	Status            types.NodeStatus `json:"status"`
+}
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:skip
+
+type Volume struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              types.VolumeSpec   `json:"spec"`
+	Status            types.VolumeStatus `json:"status"`
 }

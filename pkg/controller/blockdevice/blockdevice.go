@@ -3,11 +3,12 @@ package blockdevice
 import (
 	"fmt"
 
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	longhornv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
 	"github.com/longhorn/node-disk-manager/pkg/block"
 	"github.com/longhorn/node-disk-manager/pkg/util"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -22,6 +23,14 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhor
 		Type:       disk.FileSystemInfo.FsType,
 		IsReadOnly: disk.FileSystemInfo.IsReadOnly,
 	}
+	//if fileSystemInfo.Type == "" {
+	//	fileSystemInfo.Type = block.GetFileSystemType(disk.Name)
+	//	fmt.Sprintf("debug: %s", fileSystemInfo.Type)
+	//}
+	fmt.Println("debug:", fileSystemInfo)
+	fmt.Println("debug:", disk.FileSystemInfo.MountPoint)
+	fmt.Println("debug:", disk.FileSystemInfo.FsType)
+	fmt.Println("debug:", disk.FileSystemInfo.IsReadOnly)
 	parent := &longhornv1.BlockDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.GetBlockDeviceName(disk.Name, nodeName),
