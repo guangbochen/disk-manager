@@ -10,16 +10,15 @@ import (
 	"sync"
 	"time"
 
-	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
-	blockdevice2 "github.com/longhorn/node-disk-manager/pkg/blockdevice"
+	"github.com/longhorn/node-disk-manager/pkg/block"
 
+	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
 	"github.com/longhorn/node-disk-manager/pkg/controller/blockdevice"
 	"github.com/longhorn/node-disk-manager/pkg/option"
 	"github.com/longhorn/node-disk-manager/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/jaypipes/ghw"
 	"github.com/kr/pretty"
 	ctldiskv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io/v1beta1"
 	"github.com/pilebones/go-udev/netlink"
@@ -38,9 +37,9 @@ type Udev struct {
 	controller *blockdevice.Controller
 }
 
-func NewUdev(info *ghw.BlockInfo, blockdevices ctldiskv1.BlockDeviceController, opt *option.Option) *Udev {
+func NewUdev(block *block.Info, blockdevices ctldiskv1.BlockDeviceController, opt *option.Option) *Udev {
 	controller := &blockdevice.Controller{
-		BlockInfo:        info,
+		BlockInfo:        block,
 		Blockdevices:     blockdevices,
 		BlockdeviceCache: blockdevices.Cache(),
 	}
@@ -139,7 +138,7 @@ func (u *Udev) UpdateBlockDevice(device UdevDevice, duration time.Duration, acti
 	diskv1.DeviceMounted.SetStatusBool(bdCopy, mounted)
 
 	if !reflect.DeepEqual(bd.Status, bdCopy.Status) {
-		if _, err := u.controller.Blockdevices.Update(bdCopy); err != nil {
+		if _, err := u.controller.Blockdevices.UpdateStatus(bdCopy); err != nil {
 			u.UpdateBlockDevice(device, 2*duration, action)
 		}
 	}
@@ -154,9 +153,9 @@ func (u *Udev) AddBlockDevice(device UdevDevice, duration time.Duration) {
 
 	devName := device.GetShortName()
 	disk := u.controller.BlockInfo.GetDiskByName(devName)
-	bds := blockdevice2.GetNewBlockDevices(disk, u.nodeName, u.namespace)
+	bds := blockdevice.GetNewBlockDevices(disk, u.nodeName, u.namespace)
 
-	// blockdevice.GetNewBlockDevices()
+	// block.GetNewBlockDevices()
 	bdList, err := u.controller.BlockdeviceCache.List(u.namespace, labels.Everything())
 	if err != nil {
 		logrus.Errorf("Failed to add block device via udev event, error: %s, retry in %s", err.Error(), duration.String())
@@ -166,6 +165,7 @@ func (u *Udev) AddBlockDevice(device UdevDevice, duration time.Duration) {
 	for _, bd := range bds {
 		if err := u.controller.SaveBlockDevice(bd, bdList); err != nil {
 			logrus.Errorf("failed to save block device %s, error: %s", bd.Name, err.Error())
+			u.AddBlockDevice(device, 2*defaultDuration)
 		}
 	}
 }

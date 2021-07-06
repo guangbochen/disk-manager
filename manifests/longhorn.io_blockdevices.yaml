@@ -15,7 +15,7 @@ spec:
     plural: blockdevices
     shortNames:
     - bd
-    singular: blockdevice
+    singular: block
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
@@ -63,6 +63,9 @@ spec:
                     description: a string indicated the filesystem type for the partition,
                       or "" if the system could not determine the type.
                     type: string
+                required:
+                - mountPoint
+                - type
                 type: object
               nodeName:
                 description: a Node struct, describe the node details the BD is attached
@@ -227,6 +230,9 @@ spec:
                         description: a string indicated the filesystem type for the
                           partition, or "" if the system could not determine the type.
                         type: string
+                    required:
+                    - mountPoint
+                    - type
                     type: object
                   parentDevice:
                     description: a string with the parent device path of the disk,

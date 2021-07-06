@@ -15,7 +15,6 @@ import (
 	"os"
 
 	"github.com/ehazlett/simplelog"
-	"github.com/jaypipes/ghw"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
 	"github.com/rancher/wrangler/pkg/leader"
 	"github.com/rancher/wrangler/pkg/signals"
@@ -24,6 +23,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"k8s.io/client-go/kubernetes"
 
+	"github.com/longhorn/node-disk-manager/pkg/block"
 	blockdevicev1 "github.com/longhorn/node-disk-manager/pkg/controller/blockdevice"
 	longhornv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io"
 	"github.com/longhorn/node-disk-manager/pkg/option"
@@ -137,7 +137,7 @@ func run(opt *option.Option) error {
 	ctx := signals.SetupSignalHandler(context.Background())
 
 	// register block device detector
-	block, err := ghw.Block()
+	block, err := block.New()
 	if err != nil {
 		return err
 	}

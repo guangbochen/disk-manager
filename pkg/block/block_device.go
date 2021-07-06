@@ -19,21 +19,23 @@ import (
 // borrowed from https://github.com/jaypipes/ghw/blob/master/pkg/block/block_linux.go
 const (
 	sectorSize = 512
-)
 
-type UUIDType string
+	FsType = "TYPE"
 
-const (
 	PartUUID UUIDType = "PARTUUID"
 	PTUUID   UUIDType = "PTUUID"
 	UUID     UUIDType = "UUID"
 )
 
+type UUIDType string
+
+const ()
+
 // Info describes all disk drives and partitions in the host system.
 type Info struct {
 	ctx        *context.Context
-	Disks      []*block.Disk      `json:"disks"`
-	Partitions []*block.Partition `json:"-"`
+	Disks      []*Disk      `json:"disks"`
+	Partitions []*Partition `json:"-"`
 }
 
 // New returns a pointer to an Info struct that describes the block storage
@@ -53,7 +55,7 @@ func (i *Info) load() error {
 	return nil
 }
 
-func (i *Info) GetDiskByName(name string) *block.Disk {
+func (i *Info) GetDiskByName(name string) *Disk {
 	paths := linuxpath.New(i.ctx)
 	disk := getDisk(i.ctx, paths, name)
 	return disk
@@ -204,8 +206,8 @@ func diskWWN(paths *linuxpath.Paths, disk string) string {
 // but just the name. In other words, "sda", not "/dev/sda" and "nvme0n1" not
 // "/dev/nvme0n1") and returns a slice of pointers to Partition structs
 // representing the partitions in that disk
-func diskPartitions(ctx *context.Context, paths *linuxpath.Paths, disk string) []*block.Partition {
-	out := make([]*block.Partition, 0)
+func diskPartitions(ctx *context.Context, paths *linuxpath.Paths, disk string) []*Partition {
+	out := make([]*Partition, 0)
 	path := filepath.Join(paths.SysBlock, disk)
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -220,13 +222,15 @@ func diskPartitions(ctx *context.Context, paths *linuxpath.Paths, disk string) [
 		size := partitionSizeBytes(paths, disk, fname)
 		mp, pt, ro := partitionInfo(paths, fname)
 		du := GetDiskUUID(fname, string(PartUUID))
-		p := &block.Partition{
-			Name:       fname,
-			SizeBytes:  size,
-			MountPoint: mp,
-			Type:       pt,
-			IsReadOnly: ro,
-			UUID:       du,
+		p := &Partition{
+			Name:      fname,
+			SizeBytes: size,
+			FileSystemInfo: FileSystemInfo{
+				MountPoint: mp,
+				FsType:     pt,
+				IsReadOnly: ro,
+			},
+			UUID: du,
 		}
 		out = append(out, p)
 	}
@@ -246,7 +250,7 @@ func diskIsRemovable(paths *linuxpath.Paths, disk string) bool {
 	return false
 }
 
-func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *block.Disk {
+func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *Disk {
 	driveType, storageController := diskTypes(dname)
 	// TODO(jaypipes): Move this into diskTypes() once abstracting
 	// diskIsRotational for ease of unit testing
@@ -265,13 +269,17 @@ func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *block.
 	uuid := GetDiskUUID(dname, string(UUID))
 	ptuuid := GetDiskUUID(dname, string(PTUUID))
 	mp, pt, ro := partitionInfo(paths, dname)
-	fs := block.FileSystemInfo{
+	fs := FileSystemInfo{
 		MountPoint: mp,
 		FsType:     pt,
 		IsReadOnly: ro,
 	}
 
-	d := &block.Disk{
+	if fs.FsType == "" {
+		GetFileSystemType(dname)
+	}
+
+	d := &Disk{
 		Name:                   dname,
 		SizeBytes:              size,
 		PhysicalBlockSizeBytes: pbs,
@@ -299,12 +307,12 @@ func getDisk(ctx *context.Context, paths *linuxpath.Paths, dname string) *block.
 	return d
 }
 
-func disks(ctx *context.Context, paths *linuxpath.Paths) []*block.Disk {
+func disks(ctx *context.Context, paths *linuxpath.Paths) []*Disk {
 	// In Linux, we could use the fdisk, lshw or blockdev commands to list disk
 	// information, however all of these utilities require root privileges to
 	// run. We can get all of this information by examining the /sys/block
 	// and /sys/class/block files
-	disks := make([]*block.Disk, 0)
+	disks := make([]*Disk, 0)
 	files, err := ioutil.ReadDir(paths.SysBlock)
 	if err != nil {
 		return nil

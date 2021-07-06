@@ -2,11 +2,14 @@ package blockdevice
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"time"
 
-	"github.com/jaypipes/ghw"
+	"github.com/longhorn/node-disk-manager/pkg/block"
+
+	diskfs "github.com/diskfs/go-diskfs"
 	diskv1 "github.com/longhorn/node-disk-manager/pkg/apis/longhorn.io/v1beta1"
-	"github.com/longhorn/node-disk-manager/pkg/blockdevice"
 	ctldiskv1 "github.com/longhorn/node-disk-manager/pkg/generated/controllers/longhorn.io/v1beta1"
 	"github.com/longhorn/node-disk-manager/pkg/option"
 	"github.com/longhorn/node-disk-manager/pkg/util"
@@ -26,11 +29,11 @@ type Controller struct {
 
 	Blockdevices     ctldiskv1.BlockDeviceController
 	BlockdeviceCache ctldiskv1.BlockDeviceCache
-	BlockInfo        *ghw.BlockInfo
+	BlockInfo        *block.Info
 }
 
 // Register register the block device CRD controller
-func Register(ctx context.Context, blockdevices ctldiskv1.BlockDeviceController, block *ghw.BlockInfo, opt *option.Option) error {
+func Register(ctx context.Context, blockdevices ctldiskv1.BlockDeviceController, block *block.Info, opt *option.Option) error {
 	controller := &Controller{
 		namespace:        opt.Namespace,
 		nodeName:         opt.NodeName,
@@ -57,13 +60,13 @@ func (c *Controller) RegisterNodeBlockDevices() error {
 	for _, disk := range c.BlockInfo.Disks {
 		// ignore block device that is created by the Longhorn
 		if util.IsLonghornBlockDevice(disk.BusPath) {
-			logrus.Debugf("Skip longhorn disk, %s", disk.String())
+			logrus.Debugf("Skip longhorn disk, %s", disk.Name)
 			continue
 		}
 
 		logrus.Infof("Found a block device %s", disk.Name)
-		newBlockDevices := blockdevice.GetNewBlockDevices(disk, c.nodeName, c.namespace)
-		bds = append(bds, newBlockDevices...)
+		blockDevices := GetNewBlockDevices(disk, c.nodeName, c.namespace)
+		bds = append(bds, blockDevices...)
 	}
 
 	bdList, err := c.Blockdevices.List(c.namespace, v1.ListOptions{})
@@ -86,10 +89,45 @@ func (c *Controller) OnBlockDeviceChange(key string, device *diskv1.BlockDevice)
 		return device, nil
 	}
 
-	mounted := device.Status.DeviceStatus.FileSystem.MountPoint != ""
+	fs := device.Spec.FileSystem
+	fsStatus := device.Status.DeviceStatus.FileSystem
 	deviceCpy := device.DeepCopy()
+	//return nil, nil
+
+	// force format disks
+	if fs.ForceFormatted && fsStatus.LastFormattedAt == nil {
+		//if _, valid := isValidFileSystem(device.Spec.FileSystem, device.Status.DeviceStatus.FileSystem); valid {
+		//	return device, nil
+		//}
+
+		disk, err := diskfs.Open(device.Spec.DevPath)
+		if err != nil {
+			return device, err
+		}
+
+		fmt.Sprintf("get disk: %+v", disk)
+
+		//filesystem := diskfstype.FilesystemSpec{
+		//	Partition:   0,
+		//	FSType:      filesystem.TypeFat32,
+		//	VolumeLabel: fmt.Sprintf("%s-%s", device.Namespace, device.Name),
+		//}
+		//if _, err := disk.CreateFilesystem(filesystem); err != nil {
+		//	return device, err
+		//}
+
+		//fs, err := disk.GetFilesystem(0) // assuming it is the whole disk, so partition = 0
+		//if err != nil {
+		//	return device, err
+		//}
+		deviceCpy.Status.DeviceStatus.FileSystem.LastFormattedAt = &metav1.Time{Time: time.Now()}
+
+	}
+	message, mounted := isValidFileSystem(device.Spec.FileSystem, device.Status.DeviceStatus.FileSystem)
+
+	diskv1.DeviceMounted.SetStatusBool(deviceCpy, mounted)
+	diskv1.DeviceMounted.SetMessageIfBlank(deviceCpy, message.Error())
 	if !reflect.DeepEqual(device.Status, deviceCpy.Status) {
-		diskv1.DeviceMounted.SetStatusBool(deviceCpy, mounted)
 		if _, err := c.Blockdevices.Update(deviceCpy); err != nil {
 			return device, err
 		}
@@ -98,13 +136,26 @@ func (c *Controller) OnBlockDeviceChange(key string, device *diskv1.BlockDevice)
 	return device, nil
 }
 
+func isValidFileSystem(fs diskv1.FilesystemInfo, fsStatus diskv1.FilesystemStatus) (error, bool) {
+	if fs.MountPoint != fsStatus.MountPoint {
+		return fmt.Errorf("current mountPoint %s does not match the specifed path: %s", fs.MountPoint, fsStatus.MountPoint), false
+	}
+
+	if fs.Type != fsStatus.Type {
+		return fmt.Errorf("current filesystem type %s does not match the specifed type: %s", fs.MountPoint, fsStatus.MountPoint), false
+	}
+
+	return fmt.Errorf(""), true
+}
+
 func (c *Controller) SaveBlockDevice(blockDevice *diskv1.BlockDevice, bds []*diskv1.BlockDevice) error {
 	for _, existingBD := range bds {
 		if existingBD.Name == blockDevice.Name {
-			if !reflect.DeepEqual(existingBD.Spec, blockDevice.Spec) {
-				logrus.Infof("Update existing block device %s with device: %s", existingBD.Name, existingBD.Spec.DevPath)
+			if !reflect.DeepEqual(existingBD, blockDevice) {
+				logrus.Infof("Update existing block device %s with devPath: %s", existingBD.Name, existingBD.Spec.DevPath)
 				toUpdate := existingBD.DeepCopy()
 				toUpdate.Spec = blockDevice.Spec
+				toUpdate.Status.DeviceStatus = blockDevice.Status.DeviceStatus
 				if _, err := c.Blockdevices.Update(toUpdate); err != nil {
 					return err
 				}
@@ -123,10 +174,11 @@ func (c *Controller) SaveBlockDevice(blockDevice *diskv1.BlockDevice, bds []*dis
 func (c *Controller) SaveBlockDeviceByList(blockDevice *diskv1.BlockDevice, bdList *diskv1.BlockDeviceList) error {
 	for _, existingBD := range bdList.Items {
 		if existingBD.Name == blockDevice.Name {
-			if !reflect.DeepEqual(existingBD.Spec, blockDevice.Spec) {
+			if !reflect.DeepEqual(existingBD, blockDevice) {
 				logrus.Infof("Update existing block device %s with device: %s", existingBD.Name, existingBD.Spec.DevPath)
 				toUpdate := existingBD.DeepCopy()
 				toUpdate.Spec = blockDevice.Spec
+				toUpdate.Status.DeviceStatus = blockDevice.Status.DeviceStatus
 				if _, err := c.Blockdevices.Update(toUpdate); err != nil {
 					return err
 				}
@@ -142,14 +194,14 @@ func (c *Controller) SaveBlockDeviceByList(blockDevice *diskv1.BlockDevice, bdLi
 	return nil
 }
 
+// OnBlockDeviceDelete will delete the block devices that belongs to the same parent device
 func (c *Controller) OnBlockDeviceDelete(key string, device *diskv1.BlockDevice) (*diskv1.BlockDevice, error) {
-
 	if device == nil {
 		return nil, nil
 	}
 
 	bds, err := c.BlockdeviceCache.List(c.namespace, labels.SelectorFromSet(map[string]string{
-		blockdevice.ParentDeviceLabel: device.Name,
+		ParentDeviceLabel: device.Name,
 	}))
 
 	if err != nil {

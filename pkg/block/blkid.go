@@ -1,14 +1,10 @@
-package blkid
+package block
 
 import (
 	"os/exec"
 	"strings"
 
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	FsType = "TYPE"
 )
 
 func GetFileSystemType(part string) string {

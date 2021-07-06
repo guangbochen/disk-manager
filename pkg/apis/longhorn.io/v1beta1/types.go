@@ -49,10 +49,10 @@ type BlockDeviceStatus struct {
 
 type FilesystemInfo struct {
 	// a string indicated the filesystem type for the partition, or "" if the system could not determine the type.
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// a string with the partition's mount point, or "" if no mount point was discovered
-	MountPoint string `json:"mountPoint,omitempty"`
+	MountPoint string `json:"mountPoint"`
 
 	// a bool indicating the device is force formatted to overwrite the existing one
 	ForceFormatted bool `json:"forceFormatted,omitempty"`
@@ -137,10 +137,10 @@ type FilesystemStatus struct {
 	IsReadOnly bool `json:"isReadOnly,omitempty"`
 
 	// a string indicated the filesystem type for the partition, or "" if the system could not determine the type.
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// a string with the partition's mount point, or "" if no mount point was discovered
-	MountPoint string `json:"mountPoint,omitempty"`
+	MountPoint string `json:"mountPoint"`
 
 	// the last force formatted timestamp, only exist when user operate device formatting through the CRD controller
 	LastFormattedAt *metav1.Time `json:"LastFormattedAt,omitempty"`
