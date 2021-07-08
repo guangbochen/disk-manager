@@ -48,9 +48,6 @@ type BlockDeviceStatus struct {
 }
 
 type FilesystemInfo struct {
-	// a string indicated the filesystem type for the partition, or "" if the system could not determine the type.
-	Type string `json:"type"`
-
 	// a string with the partition's mount point, or "" if no mount point was discovered
 	MountPoint string `json:"mountPoint"`
 
@@ -219,22 +216,10 @@ type Condition struct {
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:skip
 
 type Node struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              types.NodeSpec   `json:"spec"`
 	Status            types.NodeStatus `json:"status"`
-}
-
-// +genclient
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:skip
-
-type Volume struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              types.VolumeSpec   `json:"spec"`
-	Status            types.VolumeStatus `json:"status"`
 }

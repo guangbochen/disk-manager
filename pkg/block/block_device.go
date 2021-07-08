@@ -29,8 +29,6 @@ const (
 
 type UUIDType string
 
-const ()
-
 // Info describes all disk drives and partitions in the host system.
 type Info struct {
 	ctx        *context.Context
@@ -56,6 +54,7 @@ func (i *Info) load() error {
 }
 
 func (i *Info) GetDiskByName(name string) *Disk {
+	name = strings.TrimPrefix(name, "/dev/")
 	paths := linuxpath.New(i.ctx)
 	disk := getDisk(i.ctx, paths, name)
 	return disk

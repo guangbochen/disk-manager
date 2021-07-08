@@ -23,14 +23,6 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhor
 		Type:       disk.FileSystemInfo.FsType,
 		IsReadOnly: disk.FileSystemInfo.IsReadOnly,
 	}
-	//if fileSystemInfo.Type == "" {
-	//	fileSystemInfo.Type = block.GetFileSystemType(disk.Name)
-	//	fmt.Sprintf("debug: %s", fileSystemInfo.Type)
-	//}
-	fmt.Println("debug:", fileSystemInfo)
-	fmt.Println("debug:", disk.FileSystemInfo.MountPoint)
-	fmt.Println("debug:", disk.FileSystemInfo.FsType)
-	fmt.Println("debug:", disk.FileSystemInfo.IsReadOnly)
 	parent := &longhornv1.BlockDevice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      util.GetBlockDeviceName(disk.Name, nodeName),
@@ -44,7 +36,6 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhor
 			DevPath:  getFullDevPath(disk.Name),
 			FileSystem: longhornv1.FilesystemInfo{
 				MountPoint: fileSystemInfo.MountPoint,
-				Type:       fileSystemInfo.Type,
 			},
 		},
 		Status: longhornv1.BlockDeviceStatus{
@@ -90,7 +81,6 @@ func GetPartitionBlockDevices(partitions []*block.Partition, parentDisk *longhor
 		diskCpy.Labels[ParentDeviceLabel] = parentDisk.Name
 		diskCpy.Spec.DevPath = getFullDevPath(part.Name)
 		diskCpy.Name = util.GetBlockDeviceName(part.Name, nodeName)
-		diskCpy.Spec.FileSystem.Type = part.FileSystemInfo.FsType
 		diskCpy.Spec.FileSystem.MountPoint = part.FileSystemInfo.MountPoint
 		diskCpy.Status.DeviceStatus.Partitioned = false
 		diskCpy.Status.DeviceStatus.ParentDevice = parentDisk.Spec.DevPath

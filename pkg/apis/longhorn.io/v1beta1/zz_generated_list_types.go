@@ -57,20 +57,3 @@ func NewNode(namespace, name string, obj Node) *Node {
 	obj.Namespace = namespace
 	return &obj
 }
-
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// VolumeList is a list of Volume resources
-type VolumeList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-
-	Items []Volume `json:"items"`
-}
-
-func NewVolume(namespace, name string, obj Volume) *Volume {
-	obj.APIVersion, obj.Kind = SchemeGroupVersion.WithKind("Volume").ToAPIVersionAndKind()
-	obj.Name = name
-	obj.Namespace = namespace
-	return &obj
-}

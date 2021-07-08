@@ -32,7 +32,6 @@ func init() {
 type Interface interface {
 	BlockDevice() BlockDeviceController
 	Node() NodeController
-	Volume() VolumeController
 }
 
 func New(controllerFactory controller.SharedControllerFactory) Interface {
@@ -50,7 +49,4 @@ func (c *version) BlockDevice() BlockDeviceController {
 }
 func (c *version) Node() NodeController {
 	return NewNodeController(schema.GroupVersionKind{Group: "longhorn.io", Version: "v1beta1", Kind: "Node"}, "nodes", true, c.controllerFactory)
-}
-func (c *version) Volume() VolumeController {
-	return NewVolumeController(schema.GroupVersionKind{Group: "longhorn.io", Version: "v1beta1", Kind: "Volume"}, "volumes", true, c.controllerFactory)
 }

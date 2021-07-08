@@ -59,13 +59,8 @@ spec:
                     description: a string with the partition's mount point, or ""
                       if no mount point was discovered
                     type: string
-                  type:
-                    description: a string indicated the filesystem type for the partition,
-                      or "" if the system could not determine the type.
-                    type: string
                 required:
                 - mountPoint
-                - type
                 type: object
               nodeName:
                 description: a Node struct, describe the node details the BD is attached
@@ -259,6 +254,7 @@ spec:
             - state
             type: object
         required:
+        - metadata
         - spec
         - status
         type: object
