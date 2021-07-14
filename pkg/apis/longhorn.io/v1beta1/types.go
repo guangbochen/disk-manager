@@ -14,8 +14,10 @@ var (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName=bd,scope=Namespaced
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=`.status.deviceStatus.details.deviceType`
+// +kubebuilder:printcolumn:name="MountPoint",type="string",JSONPath=`.status.deviceStatus.fileSystem.mountPoint`
 // +kubebuilder:printcolumn:name="NodeName",type="string",JSONPath=`.spec.nodeName`
-// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.state`
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=`.status.state`
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=`.metadata.creationTimestamp`
 
 type BlockDevice struct {
@@ -81,8 +83,8 @@ type DeviceCapcity struct {
 }
 
 type DeviceDetails struct {
-	// a string represents the type of the device, options are "disk", "partition"
-	// +kubebuilder:validation:Enum:=disk;partition
+	// a string represents the type of the device, options are "disk", "part"
+	// +kubebuilder:validation:Enum:=disk;part
 	DeviceType BlockDeviceType `json:"deviceType"`
 
 	// a string represents the type of drive bus, options are "HDD", "FDD", "ODD", or "SSD",
@@ -191,7 +193,7 @@ const (
 	DeviceTypeDisk BlockDeviceType = "disk"
 
 	// DeviceTypePart indicates the device type is partition
-	DeviceTypePart BlockDeviceType = "partition"
+	DeviceTypePart BlockDeviceType = "part"
 )
 
 type Condition struct {

@@ -84,6 +84,21 @@ func (c *Controller) RegisterNodeBlockDevices() error {
 			return err
 		}
 	}
+
+	// clean up previous registered block device
+	for _, existingBD := range bdList.Items {
+		toDelete := true
+		for _, bd := range bds {
+			if existingBD.Name == bd.Name {
+				toDelete = false
+			}
+		}
+		if toDelete {
+			if err := c.Blockdevices.Delete(existingBD.Namespace, existingBD.Name, &metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

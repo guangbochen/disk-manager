@@ -19,6 +19,12 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .status.deviceStatus.details.deviceType
+      name: Type
+      type: string
+    - jsonPath: .status.deviceStatus.fileSystem.mountPoint
+      name: MountPoint
+      type: string
     - jsonPath: .spec.nodeName
       name: NodeName
       type: string
@@ -132,10 +138,10 @@ spec:
                         type: string
                       deviceType:
                         description: a string represents the type of the device, options
-                          are "disk", "partition"
+                          are "disk", "part"
                         enum:
                         - disk
-                        - partition
+                        - part
                         type: string
                       driveType:
                         description: a string represents the type of drive bus, options
