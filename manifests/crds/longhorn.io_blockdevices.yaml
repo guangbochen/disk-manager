@@ -74,7 +74,6 @@ spec:
                 type: string
             required:
             - devPath
-            - fileSystem
             - nodeName
             type: object
           status:
@@ -128,11 +127,6 @@ spec:
                   details:
                     description: a object describe the disk details
                     properties:
-                      PtUUID:
-                        description: PtUUID is the UUID of the partition table itself,
-                          a unique identifier for the entire disk assigned at the
-                          time the disk was partitioned
-                        type: string
                       busPath:
                         description: a string represents the block device bus path
                         type: string
@@ -175,6 +169,11 @@ spec:
                           the partition, a standard feature for all partitions on
                           GPT-partitioned disks
                         type: string
+                      ptUUID:
+                        description: PtUUID is the UUID of the partition table itself,
+                          a unique identifier for the entire disk assigned at the
+                          time the disk was partitioned
+                        type: string
                       serialNumber:
                         description: a string with the disk's serial number
                         type: string
@@ -202,16 +201,9 @@ spec:
                         description: a string with the disk's World Wide Name(WWN)
                         type: string
                     required:
-                    - busPath
                     - deviceType
                     - driveType
-                    - isRemovable
-                    - model
-                    - numaNodeID
-                    - serialNumber
                     - storageController
-                    - vendor
-                    - wwn
                     type: object
                   fileSystem:
                     properties:

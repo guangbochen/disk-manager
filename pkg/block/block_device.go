@@ -53,11 +53,16 @@ func (i *Info) load() error {
 	return nil
 }
 
-func (i *Info) GetDiskByName(name string) *Disk {
+func (i *Info) GetDiskByDevPath(name string) *Disk {
 	name = strings.TrimPrefix(name, "/dev/")
 	paths := linuxpath.New(i.ctx)
-	disk := getDisk(i.ctx, paths, name)
-	return disk
+	return getDisk(i.ctx, paths, name)
+}
+
+func (i *Info) GetPartitionByDevPath(disk, part string) *Partition {
+	name := strings.TrimPrefix(disk, "/dev/")
+	paths := linuxpath.New(i.ctx)
+	return diskPartition(paths, name, part)
 }
 
 func diskPhysicalBlockSizeBytes(paths *linuxpath.Paths, disk string) uint64 {
@@ -218,22 +223,29 @@ func diskPartitions(ctx *context.Context, paths *linuxpath.Paths, disk string) [
 		if !strings.HasPrefix(fname, disk) {
 			continue
 		}
-		size := partitionSizeBytes(paths, disk, fname)
-		mp, pt, ro := partitionInfo(paths, fname)
-		du := GetDiskUUID(fname, string(PartUUID))
-		p := &Partition{
-			Name:      fname,
-			SizeBytes: size,
-			FileSystemInfo: FileSystemInfo{
-				MountPoint: mp,
-				FsType:     pt,
-				IsReadOnly: ro,
-			},
-			UUID: du,
-		}
+		p := diskPartition(paths, disk, fname)
 		out = append(out, p)
 	}
 	return out
+}
+
+func diskPartition(paths *linuxpath.Paths, disk, fname string) *Partition {
+	size := partitionSizeBytes(paths, disk, fname)
+	mp, pt, ro := partitionInfo(paths, fname)
+	du := GetDiskUUID(fname, string(PartUUID))
+	driveType, storageController := diskTypes(fname)
+	return &Partition{
+		Name:      fname,
+		SizeBytes: size,
+		FileSystemInfo: FileSystemInfo{
+			MountPoint: mp,
+			FsType:     pt,
+			IsReadOnly: ro,
+		},
+		UUID:              du,
+		DriveType:         driveType,
+		StorageController: storageController,
+	}
 }
 
 func diskIsRemovable(paths *linuxpath.Paths, disk string) bool {

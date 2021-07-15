@@ -29,12 +29,14 @@ type Disk struct {
 
 // Partition describes a logical division of a Disk.
 type Partition struct {
-	Disk           *Disk          `json:"-"`
-	Name           string         `json:"name"`
-	Label          string         `json:"label"`
-	SizeBytes      uint64         `json:"size_bytes"`
-	UUID           string         `json:"uuid"` // This would be volume UUID on macOS, PartUUID on linux, empty on Windows
-	FileSystemInfo FileSystemInfo `json:"file_system_info"`
+	Disk              *Disk                   `json:"-"`
+	Name              string                  `json:"name"`
+	Label             string                  `json:"label"`
+	SizeBytes         uint64                  `json:"size_bytes"`
+	UUID              string                  `json:"uuid"` // This would be volume UUID on macOS, PartUUID on linux, empty on Windows
+	DriveType         block.DriveType         `json:"drive_type"`
+	StorageController block.StorageController `json:"storage_controller"`
+	FileSystemInfo    FileSystemInfo          `json:"file_system_info"`
 }
 
 type FileSystemInfo struct {

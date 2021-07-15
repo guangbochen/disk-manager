@@ -11,6 +11,7 @@ import (
 
 const (
 	ParentDeviceLabel = "ndm.longhorn.io/parent-device"
+	DeviceTypeLabel   = "ndm.longhorn.io/device-type"
 )
 
 func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhornv1.BlockDevice {
@@ -27,6 +28,7 @@ func GetNewBlockDevices(disk *block.Disk, nodeName, namespace string) []*longhor
 			Namespace: namespace,
 			Labels: map[string]string{
 				v1.LabelHostname: nodeName,
+				DeviceTypeLabel:  string(longhornv1.DeviceTypeDisk),
 			},
 		},
 		Spec: longhornv1.BlockDeviceSpec{
@@ -75,19 +77,48 @@ func GetPartitionBlockDevices(partitions []*block.Partition, parentDisk *longhor
 			MountPoint: part.FileSystemInfo.MountPoint,
 			IsReadOnly: part.FileSystemInfo.IsReadOnly,
 		}
-		diskCpy := parentDisk.DeepCopy()
-		diskCpy.Labels[ParentDeviceLabel] = parentDisk.Name
-		diskCpy.Spec.DevPath = util.GetFullDevPath(part.Name)
-		diskCpy.Name = util.GetBlockDeviceName(part.Name, nodeName)
-		diskCpy.Spec.FileSystem.MountPoint = part.FileSystemInfo.MountPoint
-		diskCpy.Status.DeviceStatus.Partitioned = false
-		diskCpy.Status.DeviceStatus.ParentDevice = parentDisk.Spec.DevPath
-		diskCpy.Status.DeviceStatus.Details.DeviceType = longhornv1.DeviceTypePart
-		diskCpy.Status.DeviceStatus.Capacity.SizeBytes = part.SizeBytes
-		diskCpy.Status.DeviceStatus.Details.Label = part.Label
-		diskCpy.Status.DeviceStatus.Details.PartUUID = part.UUID
-		diskCpy.Status.DeviceStatus.FileSystem = fileSystemInfo
-		blockDevices = append(blockDevices, diskCpy)
+
+		status := longhornv1.BlockDeviceStatus{
+			DeviceStatus: longhornv1.DeviceStatus{
+				Capacity: longhornv1.DeviceCapcity{
+					SizeBytes:              part.SizeBytes,
+					PhysicalBlockSizeBytes: parentDisk.Status.DeviceStatus.Capacity.PhysicalBlockSizeBytes,
+				},
+				Partitioned: false,
+				Details: longhornv1.DeviceDetails{
+					DeviceType:        longhornv1.DeviceTypePart,
+					Label:             part.Label,
+					PartUUID:          part.UUID,
+					DriveType:         part.DriveType.String(),
+					StorageController: part.StorageController.String(),
+				},
+				FileSystem:   fileSystemInfo,
+				ParentDevice: parentDisk.Spec.DevPath,
+			},
+			State: longhornv1.BlockDeviceActive,
+		}
+
+		blockDevice := &longhornv1.BlockDevice{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      util.GetBlockDeviceName(part.Name, nodeName),
+				Namespace: parentDisk.Namespace,
+				Labels: map[string]string{
+					v1.LabelHostname:  nodeName,
+					ParentDeviceLabel: parentDisk.Name,
+					DeviceTypeLabel:   string(longhornv1.DeviceTypePart),
+				},
+			},
+			Spec: longhornv1.BlockDeviceSpec{
+				NodeName: nodeName,
+				DevPath:  util.GetFullDevPath(part.Name),
+				FileSystem: longhornv1.FilesystemInfo{
+					MountPoint: part.FileSystemInfo.MountPoint,
+				},
+			},
+			Status: status,
+		}
+
+		blockDevices = append(blockDevices, blockDevice)
 	}
 	return blockDevices
 }

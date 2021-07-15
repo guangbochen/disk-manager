@@ -29,12 +29,15 @@ type BlockDevice struct {
 
 type BlockDeviceSpec struct {
 	// a Node struct, describe the node details the BD is attached to
+	// +kubebuilder:validation:Required
 	NodeName string `json:"nodeName"`
 
 	// a string with the device path of the disk, e.g. "/dev/sda1"
+	// +kubebuilder:validation:Required
 	DevPath string `json:"devPath"`
 
-	FileSystem FilesystemInfo `json:"fileSystem"`
+	// +optional
+	FileSystem FilesystemInfo `json:"fileSystem,omitempty"`
 }
 
 type BlockDeviceStatus struct {
@@ -100,32 +103,32 @@ type DeviceDetails struct {
 	UUID string `json:"uuid,omitempty"`
 
 	// PtUUID is the UUID of the partition table itself, a unique identifier for the entire disk assigned at the time the disk was partitioned
-	PtUUID string `json:"PtUUID,omitempty"`
+	PtUUID string `json:"ptUUID,omitempty"`
 
 	// contains a boolean indicating if the disk drive is removable
-	IsRemovable bool `json:"isRemovable"`
+	IsRemovable bool `json:"isRemovable,omitempty"`
 
 	// the type of storage controller/drive, options are "SCSI", "IDE", "virtio", "MMC", or "NVMe"
 	// +kubebuilder:validation:Enum:=SCSI;IDE;virtio;MMC;NVMe;Unknown
 	StorageController string `json:"storageController"`
 
 	// a string represents the block device bus path
-	BusPath string `json:"busPath"`
+	BusPath string `json:"busPath,omitempty"`
 
 	// a string with the vendor-assigned disk model name
-	Model string `json:"model"`
+	Model string `json:"model,omitempty"`
 
 	// a string with the name of the hardware vendor for the disk drive
-	Vendor string `json:"vendor"`
+	Vendor string `json:"vendor,omitempty"`
 
 	// a string with the disk's serial number
-	SerialNumber string `json:"serialNumber"`
+	SerialNumber string `json:"serialNumber,omitempty"`
 
 	// the numeric index of the NUMA node this disk is local to, or -1
-	NUMANodeID int `json:"numaNodeID"`
+	NUMANodeID int `json:"numaNodeID,omitempty"`
 
 	// a string with the disk's World Wide Name(WWN)
-	WWN string `json:"wwn"`
+	WWN string `json:"wwn,omitempty"`
 
 	// a string containing the disk label
 	Label string `json:"label,omitempty"`

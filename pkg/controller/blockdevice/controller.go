@@ -132,7 +132,7 @@ func (c *Controller) OnBlockDeviceChange(key string, device *diskv1.BlockDevice)
 			return c.Blockdevices.Update(deviceCpy)
 		}
 
-		disk := c.BlockInfo.GetDiskByName(deviceCpy.Spec.DevPath)
+		disk := c.BlockInfo.GetDiskByDevPath(deviceCpy.Spec.DevPath)
 		deviceCpy.Status.DeviceStatus.FileSystem.Type = disk.FileSystemInfo.FsType
 		deviceCpy.Status.DeviceStatus.FileSystem.MountPoint = disk.FileSystemInfo.MountPoint
 	}
