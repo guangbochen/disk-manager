@@ -92,13 +92,13 @@ func (u *Udev) monitor(ctx context.Context) {
 
 func (u *Udev) ActionHandler(uevent netlink.UEvent) {
 	udevDevice := InitUdevDevice(uevent.Env)
-	disk := u.controller.BlockInfo.GetDiskByName(udevDevice.GetShortName())
+	disk := u.controller.BlockInfo.GetDiskByDevPath(udevDevice.GetShortName())
 	// ignore block device by filters
 	if u.controller.ApplyFilter(disk) {
 		return
 	}
 
-	if udevDevice.IsDisk() || udevDevice.IsPartition() {
+	if udevDevice.IsDisk() {
 		log.Println("Handle", pretty.Sprint(uevent))
 		switch uevent.Action {
 		case netlink.ADD:
@@ -119,7 +119,7 @@ func (u *Udev) UpdateBlockDevice(device UdevDevice, duration time.Duration, acti
 	logrus.Debugf("uevent update block deivce %s", device.GetPath())
 	devName := device.GetShortName()
 	bdName := util.GetBlockDeviceName(devName, u.nodeName)
-	disk := u.controller.BlockInfo.GetDiskByName(devName)
+	disk := u.controller.BlockInfo.GetDiskByDevPath(devName)
 
 	bd, err := u.controller.BlockdeviceCache.Get(u.namespace, bdName)
 	if err != nil {
@@ -154,7 +154,7 @@ func (u *Udev) AddBlockDevice(device UdevDevice, duration time.Duration) {
 	logrus.Debugf("uevent add block deivce %s", device.GetPath())
 
 	devName := device.GetShortName()
-	disk := u.controller.BlockInfo.GetDiskByName(devName)
+	disk := u.controller.BlockInfo.GetDiskByDevPath(devName)
 	bds := blockdevice.GetNewBlockDevices(disk, u.nodeName, u.namespace)
 
 	bdList, err := u.controller.BlockdeviceCache.List(u.namespace, labels.Everything())
